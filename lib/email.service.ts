@@ -3,7 +3,7 @@ import { Resend } from "resend";
 
 const cellStyles = 'border: 1px solid black;padding: 4px;';
 
-export async function sendStats(stats: FundStats[]) {
+export async function sendStats(stats: FundStats[]): Promise<string> {
     const emailRecipient = process.env.Email_Recipient;
     if (!emailRecipient) {
         console.error('Email recipient is not defined!');
@@ -28,6 +28,8 @@ export async function sendStats(stats: FundStats[]) {
         subject: emailSubject,
         html: emailBody
     });
+
+    return emailBody;
 }
 
 function getEmailSubject(stats: FundStats[]): string {
@@ -78,7 +80,7 @@ function generateTable(stats: FundStats[]): string {
             ${generateValue(x.last180days)}
             ${generateValue(x.refChange)}
             ${generateCell(`<a href="${x.url}" target="_blank">Link</a>`)}
-        </tr>`);
+        </tr>`).join('\n');
 
     return `
         <table style="border:1px solid black;border-spacing: 0;">

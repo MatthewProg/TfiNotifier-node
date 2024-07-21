@@ -47,8 +47,8 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
     stats.push(stat);
   }
 
-  await sendStats(stats);
+  const body = await sendStats(stats);
   console.log('Stats send!');
 
-  return res.status(200).end();
+  return res.status(200).end(body);
 };
