@@ -1,4 +1,4 @@
-import puppeteer from 'puppeteer';
+import { Page } from 'puppeteer-core';
 import { FundStats } from './fund-stats.model.js';
 
 interface FundsMetadata {
@@ -22,9 +22,9 @@ interface FundEntry {
 }
 
 export default class FundsService {
-  private readonly page: puppeteer.Page;
+  private readonly page: Page;
 
-  constructor(page: puppeteer.Page) {
+  constructor(page: Page) {
     this.page = page;
   }
 
