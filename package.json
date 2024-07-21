@@ -1,0 +1,22 @@
+{
+  "name": "tfi-notifier",
+  "private": "true",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc --build",
+    "run": "vercel dev"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "devDependencies": {
+    "@types/node": "^20.14.11",
+    "@vercel/node": "^3.2.7",
+    "typescript": "^5.5.3"
+  },
+  "dependencies": {
+    "@vercel/functions": "^1.4.0"
+  }
+}
