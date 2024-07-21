@@ -59,6 +59,7 @@ export default class FundsService {
     const fundsJson: FundsMetadata[] = await fundsResponse.json();
   
     const fundsMetadata = new Map(Array.from(fundsJson).map(x => [x.funduszId, x.nazwa]));
+    console.log('Got metadata for %d funds', fundsMetadata.size);
 
     return fundsMetadata;
   }
@@ -89,6 +90,8 @@ export default class FundsService {
     const last30days = this.getChange(fundValues, 30);
     const last90days = this.getChange(fundValues, 90);
     const last180days = this.getChange(fundValues, 180);
+
+    console.log('Got stats for fund ID: ', fund.funduszId);
 
     return {
       id: fund.funduszId,

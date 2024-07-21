@@ -2,12 +2,15 @@ import { VercelRequest, VercelResponse } from '@vercel/node';
 import puppeteer from 'puppeteer';
 import FundsService from '../lib/funds.service.js';
 import { FundStats } from '../lib/fund-stats.model.js';
+import { sendStats } from '../lib/email.service.js';
 
 export default async (req: VercelRequest, res: VercelResponse): Promise<VercelResponse> => {
   const authHeader = req.headers.authorization;
   if (!authHeader || authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).end('Unauthorized');
   }
+
+  console.log('Auth passed');
 
   const browser = await puppeteer.launch({
     args: [
@@ -21,6 +24,7 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
 
   const page = await browser.newPage();
   const fundsService = new FundsService(page);
+  console.log('Browser started');
 
   const fundsList = fundsService.getFundsList();
   if (fundsList.length === 0) {
@@ -34,10 +38,13 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
     const stat = await fundsService.getFundStats(fund.url);
 
     stat.name = fundsMetadata.get(stat.id);
-    stat.refChange = !fund.refValue ? 0 : (stat.current ?? 0 / stat.refChange!) - 1.0;
+    stat.refChange = !fund.refValue ? 0 : ((stat.current ?? 0) / fund.refValue) - 1.0;
 
     stats.push(stat);
   }
 
-  return res.json(stats);
+  await sendStats(stats);
+  console.log('Stats send!');
+
+  return res.status(200).end();
 };
