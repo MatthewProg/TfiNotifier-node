@@ -18,9 +18,9 @@
     "typescript": "^5.5.3"
   },
   "dependencies": {
+    "@sparticuz/chromium": "^119.0.2",
     "@vercel/functions": "^1.4.0",
-    "chrome-aws-lambda": "^10.1.0",
-    "puppeteer": "^22.13.1",
+    "puppeteer-core": "^21.5.1",
     "resend": "^3.4.0"
   }
 }

@@ -1,6 +1,6 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import Chromium from 'chrome-aws-lambda';
-import puppeteer from 'puppeteer';
+import Chromium from '@sparticuz/chromium';
+import puppeteer from 'puppeteer-core';
 import FundsService from '../lib/funds.service.js';
 import { FundStats } from '../lib/fund-stats.model.js';
 import { sendStats } from '../lib/email.service.js';
@@ -13,12 +13,17 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
 
   console.log('Auth passed');
 
-  const browser = await Chromium.puppeteer.launch({
-    args: [...Chromium.args],
-    defaultViewport: Chromium.defaultViewport,
-    executablePath: await Chromium.executablePath,
-    headless: true,
-    ignoreHTTPSErrors: true
+  const production = process.env.NODE_ENV === 'production';
+  const browser = await puppeteer.launch(
+    production ? {
+      args: Chromium.args,
+      defaultViewport: Chromium.defaultViewport,
+      executablePath: await Chromium.executablePath(),
+      ignoreHTTPSErrors: true,
+      headless: 'new'
+    } : {
+      headless: 'new',
+      executablePath: 'C:/Program Files/Google/Chrome/Application/chrome.exe'
   });
 
   const page = await browser.newPage();
