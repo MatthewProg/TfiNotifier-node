@@ -16,7 +16,7 @@ interface FundValue {
   value: number
 };
 
-interface FundEntry {
+export interface FundEntry {
   url: string,
   refValue: number
 }

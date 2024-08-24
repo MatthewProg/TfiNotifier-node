@@ -2,6 +2,9 @@
   "functions": {
     "api/notify.ts": {
       "maxDuration": 60
+    },
+    "api/scrape.ts": {
+      "maxDuration": 60
     }
   },
   "crons": [
