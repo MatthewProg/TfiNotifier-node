@@ -46,8 +46,7 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
 
 async function fetchStats(fund: FundEntry): Promise<FundStats | undefined> {
   const isProduction = process.env.NODE_ENV === 'production';
-  const url = `${isProduction ? 'https://' : 'http://'}${process.env.VERCEL_URL}/api/scrape`;
-  console.log('Calling', url);
+  const url = `${isProduction ? `https://${process.env.APP_URL}` : 'http://localhost:3000'}/api/scrape`;
 
   const response = await fetch(url, {
     method: 'POST',
