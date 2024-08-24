@@ -4,6 +4,7 @@ import FundsService, { FundEntry } from "../lib/funds.service.js";
 
 export default async (req: VercelRequest, res: VercelResponse): Promise<VercelResponse> => {
     const authHeader = req.headers.authorization;
+    console.log(`Auth null: ${!authHeader}, len: ${authHeader?.length}`);
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
       return res.status(401).end('Unauthorized');
     }

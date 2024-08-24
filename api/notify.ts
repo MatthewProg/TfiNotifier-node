@@ -3,6 +3,7 @@ import FundsService, { FundEntry } from '../lib/funds.service.js';
 import { FundStats } from '../lib/fund-stats.model.js';
 import { sendStats } from '../lib/email.service.js';
 import { getBrowser } from '../lib/browser-factory.service.js';
+import axios from 'axios';
 
 export default async (req: VercelRequest, res: VercelResponse): Promise<VercelResponse> => {
   const authHeader = req.headers.authorization;
@@ -46,27 +47,23 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
 
 async function fetchStats(fund: FundEntry): Promise<FundStats | undefined> {
   const isProduction = process.env.NODE_ENV === 'production';
-  const url = `${isProduction ? 'https://' : 'http://'}${process.env.VERCEL_URL}/api/scrape`;
+  const url = `${isProduction ? `https://${process.env.APP_URL}` : 'http://localhost:3000'}/api/scrape`;
   console.log('Calling', url);
 
-  const response = await fetch(url, {
-    method: 'POST',
-    credentials: 'include',
+  const response = await axios.post(url, fund, {
     headers: {
-      'Authorization': `Bearer ${process.env.CRON_SECRET}`,
-      'Content-Type': 'application/json'
-    },
-
-    body: JSON.stringify(fund)
+      Accept: 'application/json',
+      "Content-Type": 'application/json',
+      Authorization: `Bearer ${process.env.CRON_SECRET}`
+    }
   });
 
   console.log(`Response for '${fund.url}' is ${response.status}`);
-  if (!response.ok) {
+  if (response.status !== 200) {
     return undefined;
   }
 
-  const body = await response.json();
-  const rawBody = body as FundStats;
+  const rawBody = response.data as FundStats;
 
   return {
     ...rawBody,
