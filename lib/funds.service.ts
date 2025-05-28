@@ -1,85 +1,105 @@
-import { Page } from 'puppeteer-core';
-import { FundStats } from './fund-stats.model.js';
+import { FundStats } from "./fund-stats.model.js";
+import axios, { AxiosInstance } from "axios";
 
 interface FundsMetadata {
-  funduszId: string,
-  nazwa: string
-};
+  funduszId: string;
+  nazwa: string;
+}
 
 interface Fund {
-  funduszId: string,
-  cenaTable: [number, number][]
-};
+  funduszId: string;
+  cenaTable: [number, number][];
+}
 
 interface FundValue {
-  date: Date,
-  value: number
-};
+  date: Date;
+  value: number;
+}
 
-export interface FundEntry {
-  url: string,
-  refValue: number
+interface FundEntry {
+  id: string;
+  refValue: number;
 }
 
 export default class FundsService {
-  private readonly page: Page;
+  private readonly client: AxiosInstance;
 
-  constructor(page: Page) {
-    this.page = page;
+  constructor() {
+    this.client = axios.create({
+      baseURL: "https://inpzu.pl/afi-websrv-dystr-prod/api",
+      headers: {
+        "x-afiapi-clientappname": "inpzu-prod",
+        "x-afiapi-ustawienia": "pl",
+      },
+    });
+  }
+
+  public async init() {
+    console.log("Initializing FundsService");
+    const tokenResponse = await this.client.post<{ token: string }>("/preLogowanie");
+    const token = tokenResponse.data.token;
+
+    this.client.defaults.headers["Authorization"] = `Bearer ${token}`;
+    console.log("Got access token");
   }
 
   public getFundsList(): FundEntry[] {
     const envVariables = Object.entries(process.env);
-    const fundKeys = envVariables.filter(x => x[0].startsWith('Fund_') && x[0].endsWith('_Url'))
-                                      .map(x => x[0].split('_').at(1));
+    const fundKeys = envVariables
+      .filter((x) => x[0].startsWith("Fund_") && x[0].endsWith("_Id"))
+      .map((x) => x[0].split("_").at(1));
 
-    const entries = fundKeys.map<FundEntry | undefined>(x => {
-        if (!x) return undefined;
+    const entries = fundKeys.map<FundEntry | undefined>((x) => {
+      if (!x) return undefined;
 
-        const valueUrl = process.env[`Fund_${x}_Url`]?.trim();
-        const valueRef = process.env[`Fund_${x}_Ref`]?.trim();
+      const valueId = process.env[`Fund_${x}_Id`]?.trim();
+      const valueRef = process.env[`Fund_${x}_Ref`]?.trim();
 
-        if (!valueUrl) return undefined;
+      if (!valueId) return undefined;
 
-        const parsedRef = valueRef ? parseFloat(valueRef) : 0;
+      const parsedRef = valueRef ? parseFloat(valueRef) : 0;
 
-        return {
-            url: valueUrl,
-            refValue: isNaN(parsedRef) ? 0 : parsedRef
-        };
+      return {
+        id: valueId,
+        refValue: isNaN(parsedRef) ? 0 : parsedRef,
+      };
     });
 
-    return entries.filter(x => !!x) as FundEntry[];
+    return entries.filter((x) => !!x) as FundEntry[];
   }
 
   public async getFundsMetadata(): Promise<Map<string, string>> {
-    await this.page.goto('https://inpzu.pl/tfi/kup-lista-funduszy/index');
+    const fundsResponse = await this.client.get<FundsMetadata[]>("/open/fundusze");
 
-    const fundsResponse = await this.page.waitForResponse('https://inpzu.pl/afi-websrv-dystr-prod/api/open/fundusze');
-    const fundsJson: FundsMetadata[] = await fundsResponse.json();
-  
-    const fundsMetadata = new Map(Array.from(fundsJson).map(x => [x.funduszId, x.nazwa]));
-    console.log('Got metadata for %d funds', fundsMetadata.size);
+    const fundsMetadata = new Map(
+      Array.from(fundsResponse.data).map((x) => [x.funduszId, x.nazwa])
+    );
+    console.log("Got metadata for %d funds", fundsMetadata.size);
 
     return fundsMetadata;
   }
 
-  public async getFundStats(url: string): Promise<FundStats> {
-    await this.page.goto(url);
-
-    const fundResponse = await this.page.waitForResponse('https://inpzu.pl/afi-websrv-dystr-prod/api/open/wyceny');
-    const fundJson: Fund[] = await fundResponse.json();
-    const fund = fundJson?.at(0);
+  public async getFundStats(fundId: string): Promise<FundStats> {
+    console.log('Getting stats for fund: ', fundId);
+    const fundRequest = {
+      cenaTable: true,
+      tableFunduszId: [fundId],
+    };
+    const fundResponse = await this.client.post<Fund[]>("/open/wyceny", fundRequest);
+    const fund = fundResponse.data?.at(0);
 
     if (!fund?.cenaTable?.length) {
       return {
-        id: 'Error',
-        name: 'Error',
-        url: url
+        id: "Error",
+        name: "Error",
+        url: "",
       };
     }
 
-    const fundValues = fund.cenaTable.map<FundValue>(x => ({ date: new Date(x[0]), value: x[1] }));
+    const fundValues = fund.cenaTable.map<FundValue>((x) => ({
+      date: new Date(x[0]),
+      value: x[1],
+    }));
 
     const newestItem = fundValues.at(-1)!;
     const current = newestItem.value;
@@ -91,11 +111,11 @@ export default class FundsService {
     const last90days = this.getChange(fundValues, 90);
     const last180days = this.getChange(fundValues, 180);
 
-    console.log('Got stats for fund ID: ', fund.funduszId);
+    console.log("Got stats for fund ID: ", fund.funduszId);
 
     return {
       id: fund.funduszId,
-      url,
+      url: "",
       lastUpdated,
       current,
       last1day,
@@ -103,7 +123,7 @@ export default class FundsService {
       last7days,
       last30days,
       last90days,
-      last180days
+      last180days,
     };
   }
 
@@ -113,8 +133,10 @@ export default class FundsService {
 
     const range = values.slice(-maxItems);
     const newest = range.at(-1)!;
-    const oldest = range.find(x => x.date.getTime() >= (newest.date.getTime() - (dayMilis * days)))!;
+    const oldest = range.find(
+      (x) => x.date.getTime() >= newest.date.getTime() - dayMilis * days
+    )!;
 
-    return (newest.value / oldest.value) - 1.0;
+    return newest.value / oldest.value - 1.0;
   }
 }

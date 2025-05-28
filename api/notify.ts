@@ -1,21 +1,17 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
-import FundsService, { FundEntry } from '../lib/funds.service.js';
+import FundsService from '../lib/funds.service.js';
 import { FundStats } from '../lib/fund-stats.model.js';
 import { sendStats } from '../lib/email.service.js';
-import { getBrowser } from '../lib/browser-factory.service.js';
 
 export default async (req: VercelRequest, res: VercelResponse): Promise<VercelResponse> => {
   const authHeader = req.headers.authorization;
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).end('Unauthorized');
   }
-
   console.log('Auth passed');
 
-  const browser = await getBrowser();
-  const page = await browser.newPage();
-  const fundsService = new FundsService(page);
-  console.log('Browser started');
+  const fundsService = new FundsService();
+  await fundsService.init();
 
   const fundsList = fundsService.getFundsList();
   if (fundsList.length === 0) {
@@ -24,7 +20,7 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
   }
 
   const fundsMetadata = await fundsService.getFundsMetadata();
-  const statRequests = fundsList.map(x => fetchStats(x));
+  const statRequests = fundsList.map(x => fundsService.getFundStats(x.id).catch(err => console.error(err)));
   const statsRaw = await Promise.all(statRequests);
 
   const stats: FundStats[] = [];
@@ -33,9 +29,17 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
       continue;
     }
 
+    const fund = fundsList.find(x => x.id === stat.id);
+
+    stat.refChange = !fund?.refValue ? 0 : ((stat.current ?? 0) / fund.refValue) - 1.0;
     stat.name = fundsMetadata.get(stat.id);
 
     stats.push(stat);
+  }
+
+  if (stats.length === 0) {
+    console.warn('Empty stats!');
+    return res.status(204).end();
   }
 
   const body = await sendStats(stats);
@@ -43,32 +47,3 @@ export default async (req: VercelRequest, res: VercelResponse): Promise<VercelRe
 
   return res.status(200).end(body);
 };
-
-async function fetchStats(fund: FundEntry): Promise<FundStats | undefined> {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const url = `${isProduction ? `https://${process.env.APP_URL}` : 'http://localhost:3000'}/api/scrape`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    credentials: 'include',
-    headers: {
-      'Authorization': `Bearer ${process.env.CRON_SECRET}`,
-      'Content-Type': 'application/json'
-    },
-
-    body: JSON.stringify(fund)
-  });
-
-  console.log(`Response for '${fund.url}' is ${response.status}`);
-  if (!response.ok) {
-    return undefined;
-  }
-
-  const body = await response.json();
-  const rawBody = body as FundStats;
-
-  return {
-    ...rawBody,
-    lastUpdated: rawBody.lastUpdated ? new Date(rawBody.lastUpdated) : undefined
-  };
-}
