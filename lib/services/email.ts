@@ -1,4 +1,4 @@
-import { FundStats } from "./fund-stats.model.js";
+import { FundStats } from "../models/fund-stats.js";
 import { Resend } from "resend";
 
 const cellStyles = 'border: 1px solid black;padding: 4px;';

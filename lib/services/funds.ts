@@ -1,12 +1,16 @@
-import { FundStats } from "./fund-stats.model.js";
+import { FundEntry } from "../models/fund-entry.js";
+import { FundMetadata } from "../models/fund-metadata.js";
+import { FundStats } from "../models/fund-stats.js";
 import axios, { AxiosInstance } from "axios";
 
-interface FundsMetadata {
+interface InternalFundsMetadata {
   funduszId: string;
   nazwa: string;
+  nazwaSkrot: string;
+  typJUId: string;
 }
 
-interface Fund {
+interface InternalFundData {
   funduszId: string;
   cenaTable: [number, number][];
 }
@@ -14,11 +18,6 @@ interface Fund {
 interface FundValue {
   date: Date;
   value: number;
-}
-
-interface FundEntry {
-  id: string;
-  refValue: number;
 }
 
 export default class FundsService {
@@ -36,11 +35,12 @@ export default class FundsService {
 
   public async init() {
     console.log("Initializing FundsService");
+
     const tokenResponse = await this.client.post<{ token: string }>("/preLogowanie");
     const token = tokenResponse.data.token;
 
-    this.client.defaults.headers["Authorization"] = `Bearer ${token}`;
     console.log("Got access token");
+    this.client.defaults.headers["Authorization"] = `Bearer ${token}`;
   }
 
   public getFundsList(): FundEntry[] {
@@ -68,24 +68,31 @@ export default class FundsService {
     return entries.filter((x) => !!x) as FundEntry[];
   }
 
-  public async getFundsMetadata(): Promise<Map<string, string>> {
-    const fundsResponse = await this.client.get<FundsMetadata[]>("/open/fundusze");
+  public async fetchFundsMetadata(): Promise<FundMetadata[]> {
+    const metadataResponse = await this.client.get<InternalFundsMetadata[]>("/open/fundusze");
 
-    const fundsMetadata = new Map(
-      Array.from(fundsResponse.data).map((x) => [x.funduszId, x.nazwa])
+    const metadata = metadataResponse.data.map(
+      (x) =>
+        <FundMetadata>{
+          id: x.funduszId,
+          name: x.nazwa,
+          url: `https://inpzu.pl/tfi/karta-funduszu/${x.nazwaSkrot.replace(" ", "_")}/${x.typJUId}`,
+        }
     );
-    console.log("Got metadata for %d funds", fundsMetadata.size);
 
-    return fundsMetadata;
+    console.log("Got metadata for %d funds", metadata.length);
+
+    return metadata;
   }
 
-  public async getFundStats(fundId: string): Promise<FundStats> {
-    console.log('Getting stats for fund: ', fundId);
+  public async fetchFundStats(fundId: string): Promise<FundStats> {
+    console.log("Getting stats for fund: ", fundId);
+
     const fundRequest = {
       cenaTable: true,
       tableFunduszId: [fundId],
     };
-    const fundResponse = await this.client.post<Fund[]>("/open/wyceny", fundRequest);
+    const fundResponse = await this.client.post<InternalFundData[]>("/open/wyceny", fundRequest);
     const fund = fundResponse.data?.at(0);
 
     if (!fund?.cenaTable?.length) {
@@ -115,7 +122,6 @@ export default class FundsService {
 
     return {
       id: fund.funduszId,
-      url: "",
       lastUpdated,
       current,
       last1day,
