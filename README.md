@@ -23,8 +23,7 @@ TFI Notifier is a simple Node application that scrapes fund data from the [inPZU
 ## Technical overview
 
 The application is hosted on the [Vercel](https://vercel.com/) platform as a serverless function and is triggered every day by a CRON job.
-Normally, this kind of application would probably just call a backend API to get the required data, but unfortunately, in this case, it was not possible. To bypass API security, the notifier is using the [`puppeteer-core`](https://www.npmjs.com/package/puppeteer-core) package to run the chromium instance and scrape the data out of it.
-After processing the gathered data, it is sent to the end-user's email via the [Resend](https://resend.com/) service.
+~~Normally, this kind of application would probably just call a backend API to get the required data, but unfortunately, in this case, it was not possible. To bypass API security, the notifier is using the [`puppeteer-core`](https://www.npmjs.com/package/puppeteer-core) package to run the chromium instance and scrape the data out of it.~~ **UPDATE: Thanks to a bit of reverse engineering, a reliable way of getting data from the API has been found. In case of any issues in the future, scrapping logic might be reverted.** After processing the gathered data, it is sent to the end-user's email via the [Resend](https://resend.com/) service.
 
 ## Application setup
 
@@ -37,14 +36,14 @@ Values used to control the behaviour of the application.
 |`RESEND_KEY`|API key to authenticate the requests|`re_dE...`|
 |`CRON_SECRET`|Random key to restrict the function triggering|`c0Af...`|
 |`Email_Recipient`|Email of the user to receive the report|`test@example.com`|
-|`Fund_{key}_Url`|Url to the index graph, where the data could be scrapped from|`https://inpzu.pl/tfi/karta-funduszu/INPZU_AA/O`|
+|`Fund_{key}_Id`|Id of the fund index|`300`|
 |`Fund_{key}_Ref`|Reference value of the fund to calculate gain/loss|`102.13`|
 > `key` can be any value that does not contain underscores ('`_`').
 
 ### Local setup
 
 1. Clone the repository.
-2. Run `npm install` (originally used Node 18).
+2. Run `npm install` (check `.nvmrc` file for the Node version used).
 3. Install Vercel CLI (`npm i -g vercel@latest`).
 4. Run `npm run run-local`.
 5. Follow the Vercel CLI steps.

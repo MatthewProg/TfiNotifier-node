@@ -22,12 +22,14 @@ export async function sendStats(stats: FundStats[]): Promise<string> {
     const resend = new Resend(resendKey);
 
     console.log('Sending email to: ', emailRecipient);
-    await resend.emails.send({
+    const emailSentResponse = await resend.emails.send({
         from: 'tfi-notifier@resend.dev',
         to: emailRecipient,
         subject: emailSubject,
         html: emailBody
     });
+
+    console.log('Email status: ', emailSentResponse);
 
     return emailBody;
 }
